@@ -1,0 +1,61 @@
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.pyc
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Environment files
+.env
+*.env
+
+# VSCode settings
+.vscode/
+
+# PyCharm settings
+.idea/
+
+# Jupyter Notebooks
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Dependency directories
+node_modules/
+bower_components/
+
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+
+# Test Coverage
+.coverage
+*.cover
+*.hypothesis/
+.pytest_cache/
+
+# FastAPI and Uvicorn logs
+*.log
+*.out
+*.pid
+
+# Docker
+*.docker
+docker-compose.override.yml
+Dockerfile*
+
+# MacOS System Files
+.DS_Store
+
+# Windows System Files
+Thumbs.db
+
+# Other
+*.sqlite3
