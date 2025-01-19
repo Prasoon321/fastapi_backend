@@ -28,7 +28,7 @@ app.add_middleware(
 index_name = "docquery"  # Pinecone index name
 
 def extract_text_from_pdf(pdf_file: UploadFile):
-    print("entered pdf text extracter")
+    # print("entered pdf text extracter")
     try:
         pdf_reader = PyPDF2.PdfReader(pdf_file.file)
         text = ""
@@ -52,7 +52,7 @@ def extract_text_from_pdf(pdf_file: UploadFile):
 @app.post("/api/upload-pdf")
 async def upload_pdf(pdf: UploadFile = File(...)):
     try:
-        print("Uploading PDF")
+        # print("Uploading PDF")
 
         if not pdf:
             raise HTTPException(status_code=400, detail="Missing PDF")
@@ -74,13 +74,13 @@ async def upload_pdf(pdf: UploadFile = File(...)):
         return JSONResponse(content={"message": "PDF uploaded and content stored successfully"})
 
     except Exception as e:
-        print(f"Error details: {str(e)}")
+        # print(f"Error details: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error uploading PDF: {str(e)}")
 
 @app.post("/api/query-pinecone")
 async def query_pinecone(query: str = Form(...)):
     try:
-        print("Querying Pinecone")
+        # print("Querying Pinecone")
 
         if not query:
             raise HTTPException(status_code=400, detail="Missing query")
@@ -102,7 +102,7 @@ async def query_pinecone(query: str = Form(...)):
         return JSONResponse(content={"answer": doc_data})
 
     except Exception as e:
-        print(f"Error details: {str(e)}")
+        # print(f"Error details: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error querying Pinecone: {str(e)}")
 
 @app.get("/")
