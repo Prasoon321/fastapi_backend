@@ -5,7 +5,6 @@ from fastapi import FastAPI, UploadFile, Form, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import PyPDF2
-from docx import Document as DocxDocument
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.llms import HuggingFaceHub
 from langchain_huggingface import HuggingFaceEmbeddings
