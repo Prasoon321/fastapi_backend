@@ -13,11 +13,9 @@ from langchain.schema import Document
 from langchain_pinecone import PineconeVectorStore
 load_dotenv()
 app = FastAPI()
-
 origins = [
     "https://www.smartdocsai.site",  # Your frontend URL
 ]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -25,30 +23,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 index_name = "docquery"  # Pinecone index name
-
-def extract_text_from_docx(docx_file: UploadFile):
-    try:
-        # Load the document content
-        doc = DocxDocument(docx_file.file)
-        text = ""
-
-        # Extract text from each paragraph
-        for paragraph in doc.paragraphs:
-            if paragraph.text.strip():  # Skip empty paragraphs
-                text += paragraph.text.strip() + " "
-
-        # Process the extracted text into chunks
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=200)
-        final_documents = text_splitter.split_text(text)
-        documents = [Document(page_content=chunk) for chunk in final_documents]
-
-        return documents
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error extracting text from DOCX: {str(e)}")
-
 def extract_text_from_pdf(pdf_file: UploadFile):
     # print("entered pdf text extracter")
     try:
@@ -70,89 +45,45 @@ def extract_text_from_pdf(pdf_file: UploadFile):
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extracting text from PDF: {str(e)}")
-
-@app.post("/api/upload-docx")
-async def upload_docx(docx: UploadFile = File(...)):
-    try:
-        if not docx:
-            raise HTTPException(status_code=400, detail="Missing DOCX file")
-
-        documents = extract_text_from_docx(docx)  # Call the docx extraction function
-
-        huggingface_embeddings = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-base-en-v1.5",
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
-        )
-
-        docsearch = PineconeVectorStore.from_documents(
-            documents=documents,
-            embedding=huggingface_embeddings,
-            index_name=index_name
-        )
-
-        return JSONResponse(content={"message": "DOCX uploaded and content stored successfully"})
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error uploading DOCX: {str(e)}")
-
-
 @app.post("/api/upload-pdf")
 async def upload_pdf(pdf: UploadFile = File(...)):
     try:
         # print("Uploading PDF")
-
         if not pdf:
             raise HTTPException(status_code=400, detail="Missing PDF")
-
         documents = extract_text_from_pdf(pdf)
-
         huggingface_embeddings = HuggingFaceEmbeddings(
             model_name="BAAI/bge-base-en-v1.5",
             model_kwargs={'device': 'cpu'},
             encode_kwargs={'normalize_embeddings': True}
         )
-
         docsearch = PineconeVectorStore.from_documents(
             documents=documents,
             embedding=huggingface_embeddings,
             index_name=index_name
         )
-
         return JSONResponse(content={"message": "PDF uploaded and content stored successfully"})
-
     except Exception as e:
-        # print(f"Error details: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error uploading PDF: {str(e)}")
-
 @app.post("/api/query-pinecone")
 async def query_pinecone(query: str = Form(...)):
     try:
-        # print("Querying Pinecone")
-
         if not query:
             raise HTTPException(status_code=400, detail="Missing query")
-
         huggingface_embeddings = HuggingFaceEmbeddings(
             model_name="BAAI/bge-base-en-v1.5",
             model_kwargs={'device': 'cpu'},
             encode_kwargs={'normalize_embeddings': True}
         )
-
         docsearch = PineconeVectorStore(
             embedding=huggingface_embeddings,
             index_name=index_name
         )
-
         relevant_documents = docsearch.similarity_search(query, k=1)
-
         doc_data = [doc.page_content for doc in relevant_documents]
         return JSONResponse(content={"answer": doc_data})
-
     except Exception as e:
-        # print(f"Error details: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error querying Pinecone: {str(e)}")
-
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
