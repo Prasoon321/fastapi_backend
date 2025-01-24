@@ -5,27 +5,49 @@ from fastapi import FastAPI, UploadFile, Form, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import PyPDF2
+from docx import Document as DocxDocument
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.llms import HuggingFaceHub
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.schema import Document
 from langchain_pinecone import PineconeVectorStore
-
 load_dotenv()
 app = FastAPI()
 
 origins = [
-    "*",  # This allows all origins (any website)
+    "https://www.smartdocsai.site",  # Your frontend URL
 ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # Allow all origins
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 index_name = "docquery"  # Pinecone index name
+
+def extract_text_from_docx(docx_file: UploadFile):
+    try:
+        # Load the document content
+        doc = DocxDocument(docx_file.file)
+        text = ""
+
+        # Extract text from each paragraph
+        for paragraph in doc.paragraphs:
+            if paragraph.text.strip():  # Skip empty paragraphs
+                text += paragraph.text.strip() + " "
+
+        # Process the extracted text into chunks
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=200)
+        final_documents = text_splitter.split_text(text)
+        documents = [Document(page_content=chunk) for chunk in final_documents]
+
+        return documents
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error extracting text from DOCX: {str(e)}")
 
 def extract_text_from_pdf(pdf_file: UploadFile):
     # print("entered pdf text extracter")
@@ -48,6 +70,32 @@ def extract_text_from_pdf(pdf_file: UploadFile):
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extracting text from PDF: {str(e)}")
+
+@app.post("/api/upload-docx")
+async def upload_docx(docx: UploadFile = File(...)):
+    try:
+        if not docx:
+            raise HTTPException(status_code=400, detail="Missing DOCX file")
+
+        documents = extract_text_from_docx(docx)  # Call the docx extraction function
+
+        huggingface_embeddings = HuggingFaceEmbeddings(
+            model_name="BAAI/bge-base-en-v1.5",
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
+
+        docsearch = PineconeVectorStore.from_documents(
+            documents=documents,
+            embedding=huggingface_embeddings,
+            index_name=index_name
+        )
+
+        return JSONResponse(content={"message": "DOCX uploaded and content stored successfully"})
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error uploading DOCX: {str(e)}")
+
 
 @app.post("/api/upload-pdf")
 async def upload_pdf(pdf: UploadFile = File(...)):
