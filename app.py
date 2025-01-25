@@ -1,4 +1,5 @@
 import os
+import hashlib
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from fastapi import FastAPI, UploadFile, Form, File, HTTPException
@@ -13,7 +14,9 @@ from langchain_pinecone import PineconeVectorStore
 load_dotenv()
 app = FastAPI()
 origins = [
-    "https://www.smartdocsai.site",  # Your frontend URL
+    "https://www.smartdocsai.site",
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
 ]
 app.add_middleware(
     CORSMiddleware,
@@ -23,27 +26,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 index_name = "docquery"  # Pinecone index name
+
+
 def extract_text_from_pdf(pdf_file: UploadFile):
     # print("entered pdf text extracter")
     try:
         pdf_reader = PyPDF2.PdfReader(pdf_file.file)
         text = ""
-
         for page in pdf_reader.pages:
             page_text = page.extract_text()
             text += page.extract_text()
             if page_text:
                 page_text = page_text.replace("\n", " ").strip()
                 text += page_text
-
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=200)
         final_documents = text_splitter.split_text(text)
         documents = [Document(page_content=chunk) for chunk in final_documents]
-
         return documents
-
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extracting text from PDF: {str(e)}")
+
 @app.post("/api/upload-pdf")
 async def upload_pdf(pdf: UploadFile = File(...)):
     try:
@@ -51,8 +53,14 @@ async def upload_pdf(pdf: UploadFile = File(...)):
         if not pdf:
             raise HTTPException(status_code=400, detail="Missing PDF")
         documents = extract_text_from_pdf(pdf)
+            # BAAI/bge-base-en-v1.5
+            # sentence-transformers/all-MiniLM-L12-v2 
+            # sentence-transformers/all-MiniLM-L6-v2 
+            # sentence-transformers/all-distilroberta-v1
+            # sentence-transformers/paraphrase-MiniLM-L12-v2
         huggingface_embeddings = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-base-en-v1.5",
+         
+            model_name="sentence-transformers/all-distilroberta-v1",
             model_kwargs={'device': 'cpu'},
             encode_kwargs={'normalize_embeddings': True}
         )
@@ -86,3 +94,6 @@ async def query_pinecone(query: str = Form(...)):
 @app.get("/")
 async def root():
     return {"message": "Hello World"}
+
+
+ 
