@@ -30,7 +30,7 @@ app.add_middleware(
 index_name = "docquery"  # Pinecone index name
 
 def extract_text_from_word(word_file: UploadFile):
-    print("entered the word ")
+    # print("entered the word ")
 
     try:
         # Load the Word document
@@ -45,14 +45,14 @@ def extract_text_from_word(word_file: UploadFile):
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=200)
         final_documents = text_splitter.split_text(text)
         documents = [Document(page_content=chunk) for chunk in final_documents]
-        print(documents)
+        # print(documents)
         return documents
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extracting text from Word document: {str(e)}")
 
 # Extract text from plain text (.txt) files
 def extract_text_from_txt(txt_file: UploadFile):
-    print("entered the txt ")
+    # print("entered the txt ")
 
     try:
         # Read the plain text file
@@ -62,7 +62,7 @@ def extract_text_from_txt(txt_file: UploadFile):
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=200)
         final_documents = text_splitter.split_text(text)
         documents = [Document(page_content=chunk) for chunk in final_documents]
-        print(documents)
+        # print(documents)
         return documents
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extracting text from TXT file: {str(e)}")
@@ -70,7 +70,7 @@ def extract_text_from_txt(txt_file: UploadFile):
 
 
 def extract_text_from_pdf(pdf_file: UploadFile):
-    print("entered pdf text extracter")
+    # print("entered pdf text extracter")
     try:
         pdf_reader = PyPDF2.PdfReader(pdf_file.file)
         text = ""
@@ -90,7 +90,7 @@ def extract_text_from_pdf(pdf_file: UploadFile):
 @app.post("/api/upload-file")
 async def upload_file(file: UploadFile = File(...)):
     try:
-        print("entered the api ")
+        # print("entered the api ")
         # Check if file is provided
         if not file:
             raise HTTPException(status_code=400, detail="Missing file")
