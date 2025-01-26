@@ -1,5 +1,7 @@
-import os
-import hashlib
+# import os
+# import hashlib
+import docx
+# from docx import Document
 from dotenv import load_dotenv
 from langchain_community.document_loaders import PyPDFLoader
 from fastapi import FastAPI, UploadFile, Form, File, HTTPException
@@ -27,9 +29,48 @@ app.add_middleware(
 )
 index_name = "docquery"  # Pinecone index name
 
+def extract_text_from_word(word_file: UploadFile):
+    print("entered the word ")
+
+    try:
+        # Load the Word document
+        doc = docx.Document(word_file.file)
+        text = ""
+        for paragraph in doc.paragraphs:
+            paragraph_text = paragraph.text.strip()
+            if paragraph_text:
+                text += f"{paragraph_text} "
+        
+        # Split the text into manageable chunks
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=200)
+        final_documents = text_splitter.split_text(text)
+        documents = [Document(page_content=chunk) for chunk in final_documents]
+        print(documents)
+        return documents
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error extracting text from Word document: {str(e)}")
+
+# Extract text from plain text (.txt) files
+def extract_text_from_txt(txt_file: UploadFile):
+    print("entered the txt ")
+
+    try:
+        # Read the plain text file
+        text = txt_file.file.read().decode('utf-8').strip()
+
+        # Split the text into manageable chunks
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=200)
+        final_documents = text_splitter.split_text(text)
+        documents = [Document(page_content=chunk) for chunk in final_documents]
+        print(documents)
+        return documents
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error extracting text from TXT file: {str(e)}")
+
+
 
 def extract_text_from_pdf(pdf_file: UploadFile):
-    # print("entered pdf text extracter")
+    print("entered pdf text extracter")
     try:
         pdf_reader = PyPDF2.PdfReader(pdf_file.file)
         text = ""
@@ -46,21 +87,35 @@ def extract_text_from_pdf(pdf_file: UploadFile):
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error extracting text from PDF: {str(e)}")
 
-@app.post("/api/upload-pdf")
-async def upload_pdf(pdf: UploadFile = File(...)):
+@app.post("/api/upload-file")
+async def upload_file(file: UploadFile = File(...)):
     try:
-        # print("Uploading PDF")
-        if not pdf:
-            raise HTTPException(status_code=400, detail="Missing PDF")
-        documents = extract_text_from_pdf(pdf)
-            # BAAI/bge-base-en-v1.5
+        print("entered the api ")
+        # Check if file is provided
+        if not file:
+            raise HTTPException(status_code=400, detail="Missing file")
+
+        # Extract the file extension
+        file_extension = file.filename.split(".")[-1].lower()
+
+        # Route the file to appropriate text extraction function
+        if file_extension == "pdf":
+            documents = extract_text_from_pdf(file)
+        elif file_extension in ["doc", "docx"]:
+            documents = extract_text_from_word(file)
+        elif file_extension == "txt":
+            documents = extract_text_from_txt(file)
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a PDF, Word document, or plain text file.")
+
+        # Embedding and storing the documents (kept from your original code)
+                    # BAAI/bge-base-en-v1.5
             # sentence-transformers/all-MiniLM-L12-v2 
             # sentence-transformers/all-MiniLM-L6-v2 
             # sentence-transformers/all-distilroberta-v1
             # sentence-transformers/paraphrase-MiniLM-L12-v2
         huggingface_embeddings = HuggingFaceEmbeddings(
-         
-            model_name="sentence-transformers/all-distilroberta-v1",
+            model_name="sentence-transformers/all-MiniLM-L12-v2",
             model_kwargs={'device': 'cpu'},
             encode_kwargs={'normalize_embeddings': True}
         )
@@ -69,16 +124,17 @@ async def upload_pdf(pdf: UploadFile = File(...)):
             embedding=huggingface_embeddings,
             index_name=index_name
         )
-        return JSONResponse(content={"message": "PDF uploaded and content stored successfully"})
+
+        return JSONResponse(content={"message": "File uploaded and content stored successfully"})
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error uploading PDF: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error uploading file: {str(e)}")
 @app.post("/api/query-pinecone")
 async def query_pinecone(query: str = Form(...)):
     try:
         if not query:
             raise HTTPException(status_code=400, detail="Missing query")
         huggingface_embeddings = HuggingFaceEmbeddings(
-            model_name="BAAI/bge-base-en-v1.5",
+            model_name="sentence-transformers/all-MiniLM-L12-v2",
             model_kwargs={'device': 'cpu'},
             encode_kwargs={'normalize_embeddings': True}
         )
